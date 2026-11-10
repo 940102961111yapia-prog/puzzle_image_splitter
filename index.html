@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#e7f6ed">
+  <title>圖片拼圖切割工坊</title>
+  <style>
+    :root {
+      --canvas:#e7f6ed; --paper:#fff; --powder:#dff4e7; --powder-soft:#f0faf4;
+      --sky:#7dd3fc; --sky-soft:#e0f7ff; --indigo:#6d7de8; --indigo-soft:#eceeff;
+      --primary:#2650c8; --primary-dark:#2347a5; --primary-soft:#e3ebff;
+      --green:#22a06b; --green-soft:#e3f7ef; --amber:#b86e00; --amber-soft:#fff3d6;
+      --red:#c2415d; --red-soft:#ffe8ed; --ink:#172b4d; --soft-ink:#415574;
+      --muted:#6b7d99; --line:#cedaf0; --glass:rgba(255,255,255,.84);
+      --shadow:0 22px 60px rgba(38,80,200,.16); --shadow-soft:0 12px 28px rgba(35,71,165,.10);
+      --radius-xl:32px; --radius-lg:24px; --radius-md:18px;
+    }
+    *{box-sizing:border-box}
+    input,select,textarea{max-width:100%}
+    body{
+      margin:0; min-height:100vh; color:var(--ink);
+      font-family:"Microsoft JhengHei","Noto Sans TC",system-ui,sans-serif;
+      background:
+        radial-gradient(circle at 8% 8%,rgba(38,80,200,.14),transparent 30%),
+        radial-gradient(circle at 92% 12%,rgba(125,211,252,.22),transparent 28%),
+        radial-gradient(circle at 50% 100%,rgba(34,160,107,.18),transparent 34%),
+        linear-gradient(135deg,#dff4e7 0%,#f0faf4 52%,#e6f7ed 100%);
+      background-attachment:fixed;
+    }
+    button,input,select{font:inherit}
+    button{cursor:pointer}
+    button:focus-visible,input:focus-visible,select:focus-visible,.drop-zone:focus-visible{
+      outline:3px solid rgba(38,80,200,.38);outline-offset:3px
+    }
+    .container{width:min(1160px,calc(100% - 32px));margin:auto;padding:26px 0 56px}
+    .topbar{
+      display:flex;align-items:center;justify-content:space-between;gap:14px;
+      padding:13px 18px;border-radius:999px;background:var(--glass);
+      border:1px solid rgba(255,255,255,.9);box-shadow:var(--shadow-soft);margin-bottom:22px;
+      backdrop-filter:blur(16px)
+    }
+    .brand{display:flex;align-items:center;gap:11px;font-weight:950;letter-spacing:.03em}
+    .logo{
+      width:42px;height:42px;border-radius:15px;display:grid;place-items:center;color:#fff;
+      background:linear-gradient(135deg,var(--primary),var(--indigo));box-shadow:0 10px 22px rgba(38,80,200,.25);
+      font-size:21px;flex:0 0 auto
+    }
+    .top-note{font-size:13px;color:var(--muted);font-weight:800}
+    .hero{display:grid;grid-template-columns:1.05fr .95fr;gap:20px;margin-bottom:22px}
+    .hero-card{
+      min-height:300px;position:relative;overflow:hidden;padding:clamp(25px,4vw,44px);
+      border-radius:var(--radius-xl);border:1px solid rgba(255,255,255,.9);box-shadow:var(--shadow);
+      background:linear-gradient(135deg,rgba(255,255,255,.94),rgba(255,255,255,.68)),
+      linear-gradient(135deg,rgba(38,80,200,.17),rgba(125,211,252,.2),rgba(109,125,232,.15))
+    }
+    .hero-card:before,.hero-card:after{content:"";position:absolute;border-radius:50%;pointer-events:none}
+    .hero-card:before{width:180px;height:180px;right:-55px;top:-65px;background:linear-gradient(135deg,var(--sky),var(--indigo));opacity:.72}
+    .hero-card:after{width:120px;height:120px;left:-40px;bottom:-48px;background:linear-gradient(135deg,var(--powder),var(--sky));opacity:.8}
+    .hero-content{position:relative;z-index:1}
+    .eyebrow{display:inline-flex;padding:8px 14px;border-radius:999px;background:var(--sky-soft);color:var(--primary);font-size:13px;font-weight:950;letter-spacing:.06em}
+    h1{font-size:clamp(34px,5vw,56px);line-height:1.14;margin:17px 0 12px;letter-spacing:.02em}
+    .accent{background:linear-gradient(90deg,var(--primary-dark),var(--primary),var(--indigo));background-clip:text;-webkit-background-clip:text;color:transparent}
+    .hero p{max-width:620px;margin:0;color:var(--soft-ink);line-height:1.85;font-size:16px}
+    .hero-side{display:grid;gap:14px}
+    .info-card,.section{
+      border-radius:var(--radius-xl);background:var(--glass);border:1px solid rgba(255,255,255,.9);
+      box-shadow:var(--shadow-soft);backdrop-filter:blur(16px)
+    }
+    .info-card{padding:21px;display:flex;flex-direction:column;justify-content:center;min-height:138px}
+    .info-card h2{margin:0 0 8px;font-size:21px}
+    .info-card p{margin:0;color:var(--soft-ink);line-height:1.75}
+    .steps{display:grid;gap:9px;margin-top:13px}
+    .step{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:15px;background:rgba(255,255,255,.7);font-size:14px;font-weight:800}
+    .step-num{width:27px;height:27px;border-radius:10px;display:grid;place-items:center;color:#fff;background:linear-gradient(135deg,var(--primary),var(--indigo));flex:0 0 auto}
+    .section{padding:24px;margin-bottom:21px}
+    .section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-bottom:17px}
+    .section h2{font-size:25px;margin:0;letter-spacing:.02em}
+    .desc{margin:6px 0 0;color:var(--muted);line-height:1.7;font-size:14px}
+    .workspace{display:grid;grid-template-columns: minmax(0, .9fr) minmax(0,1.1fr);gap:17px}
+    .panel{min-width:0;padding:18px;border-radius:23px;background:rgba(255,255,255,.83);border:1px solid rgba(255,255,255,.95);box-shadow:var(--shadow-soft)}
+    .panel h3{font-size:18px;margin:0 0 13px}
+    .drop-zone{
+      min-height:210px;border:2px dashed #9bb5e8;border-radius:21px;
+      background:linear-gradient(135deg,#f7fbff,#f0faf4);display:flex;flex-direction:column;
+      align-items:center;justify-content:center;text-align:center;padding:20px;gap:8px;
+      transition:.2s ease;cursor:pointer
+    }
+    .drop-zone.dragover{background:var(--sky-soft);border-color:var(--primary);transform:scale(1.01)}
+    .upload-icon{font-size:42px}
+    .drop-zone strong{font-size:17px}
+    .drop-zone span{font-size:13px;color:var(--muted);line-height:1.6}
+    .file-input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+    .file-meta{margin-top:11px;padding:11px 13px;border-radius:15px;background:var(--powder-soft);color:var(--soft-ink);font-size:13px;line-height:1.65;overflow-wrap:anywhere}
+    .controls{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+    .field label{display:block;font-weight:900;font-size:13px;margin:0 0 7px;color:var(--soft-ink)}
+    select{
+      width:100%;padding:12px 13px;border-radius:14px;border:1px solid var(--line);
+      background:#fff;color:var(--ink);font-weight:800;min-height:46px
+    }
+    .checkline{display:flex;align-items:flex-start;gap:9px;margin-top:14px;color:var(--soft-ink);font-size:13px;line-height:1.6}
+    .checkline input{margin-top:3px;accent-color:var(--primary);width:17px;height:17px;flex:0 0 auto}
+    .button-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:17px}
+    .btn{
+      display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:16px;
+      padding:13px 17px;font-weight:950;font-size:14px;color:#fff;
+      background:linear-gradient(135deg,var(--primary),var(--primary-dark));
+      box-shadow:0 12px 24px rgba(38,80,200,.22);transition:transform .18s,filter .18s;
+    }
+    .btn:hover{transform:translateY(-2px);filter:brightness(1.05)}
+    .btn.secondary{color:var(--primary);background:rgba(255,255,255,.92);border:1px solid rgba(38,80,200,.2);box-shadow:var(--shadow-soft)}
+    .btn.green{background:linear-gradient(135deg,#22a06b,#16865a)}
+    .btn:disabled{opacity:.48;cursor:not-allowed;transform:none;filter:none}
+    .preview-wrap{display:grid;place-items:center;min-height:300px;border-radius:19px;padding:13px;background:
+      linear-gradient(45deg,#e9eef7 25%,transparent 25%),linear-gradient(-45deg,#e9eef7 25%,transparent 25%),
+      linear-gradient(45deg,transparent 75%,#e9eef7 75%),linear-gradient(-45deg,transparent 75%,#e9eef7 75%);
+      background-size:22px 22px;background-position:0 0,0 11px,11px -11px,-11px 0;overflow:hidden
+    }
+    .preview-wrap img{display:block;max-width:100%;max-height:390px;object-fit:contain;border-radius:9px;box-shadow:0 8px 22px rgba(23,43,77,.12)}
+    .empty-preview{text-align:center;color:var(--muted);font-size:14px;line-height:1.8}
+    .status{margin-top:13px;min-height:24px;font-size:13px;line-height:1.6;color:var(--soft-ink)}
+    .status.error{color:var(--red);font-weight:900}
+    .status.success{color:var(--green);font-weight:900}
+    .result-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+    .count-pill{padding:8px 12px;border-radius:999px;background:var(--primary-soft);color:var(--primary-dark);font-size:13px;font-weight:950}
+    .pieces-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+    .piece-card{min-width:0;padding:9px;border-radius:17px;background:#fff;border:1px solid var(--line);box-shadow:0 5px 15px rgba(35,71,165,.07)}
+    .piece-card img{display:block;width:100%;aspect-ratio:1/1;object-fit:contain;background:#f3f7fb;border-radius:10px}
+    .piece-card .piece-label{display:block;text-align:center;font-size:12px;color:var(--muted);font-weight:850;margin:8px 0 7px}
+    .piece-card button{width:100%;border:0;border-radius:11px;padding:8px 5px;background:var(--primary-soft);color:var(--primary-dark);font-size:12px;font-weight:950}
+    .piece-card button:hover{background:var(--primary);color:white}
+    .result-actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:16px}
+    .tips{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    .tip{padding:15px;border-radius:19px;background:rgba(255,255,255,.82);border:1px solid var(--line)}
+    .tip b{display:block;margin-bottom:5px}.tip p{margin:0;color:var(--muted);font-size:13px;line-height:1.65}
+    footer{text-align:center;color:var(--muted);font-size:12px;padding:8px 10px 0;line-height:1.7}
+    @media(max-width:900px){.hero,.workspace{grid-template-columns:1fr}.hero-card{min-height:260px}.hero-side{grid-template-columns:1fr 1fr}.preview-wrap{min-height:260px}}
+    @media(max-width:620px){
+      .container{width:calc(100% - 20px);padding-top:15px}.topbar{border-radius:22px;padding:11px 13px}
+      .top-note{display:none}.hero-card{padding:25px 22px;border-radius:26px}
+      .hero-side{grid-template-columns:1fr}.section{padding:16px;border-radius:25px}
+      .section h2{font-size:22px}.panel{padding:13px}.controls{grid-template-columns:1fr}
+      .button-row .btn{width:100%}.tips{grid-template-columns:1fr}.pieces-grid{gap:8px}
+      .piece-card{padding:6px}.piece-card .piece-label{font-size:11px}.piece-card button{font-size:11px}
+      .preview-wrap{min-height:220px}.result-actions .btn{flex:1 1 100%}
+    }
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important}}
+  </style>
+</head>
+<body>
+  <main class="container">
+    <nav class="topbar" aria-label="主導覽">
+      <div class="brand"><div class="logo" aria-hidden="true">🧩</div><span>圖片拼圖切割工坊</span></div>
+      <div class="top-note">本機處理・免上傳・自由下載</div>
+    </nav>
+
+    <section class="hero">
+      <div class="hero-card">
+        <div class="hero-content">
+          <span class="eyebrow">PUZZLE IMAGE SPLITTER</span>
+          <h1>一張圖片，<br><span class="accent">變成拼圖小方塊！</span></h1>
+          <p>上傳照片，選擇 3×3、4×4 或 5×5，立即切成整齊的小圖塊。可逐片下載，方便製作教具、配對活動與拼圖遊戲。</p>
+        </div>
+      </div>
+      <aside class="hero-side">
+        <div class="info-card">
+          <h2>✨ 三種切割尺寸</h2>
+          <p>從 9 片入門到 25 片挑戰，依課程或活動難度自由選擇。</p>
+          <div class="steps">
+            <div class="step"><span class="step-num">1</span>選擇一張圖片</div>
+            <div class="step"><span class="step-num">2</span>設定拼圖格數</div>
+            <div class="step"><span class="step-num">3</span>產生並下載圖塊</div>
+          </div>
+        </div>
+        <div class="info-card">
+          <h2>🔒 圖片留在你的裝置</h2>
+          <p>使用瀏覽器 Canvas 在本機切割，不會將圖片傳送到網站或外部伺服器。</p>
+        </div>
+      </aside>
+    </section>
+
+    <section class="section" aria-labelledby="work-title">
+      <div class="section-head">
+        <div><h2 id="work-title">開始製作拼圖</h2><p class="desc">支援常見 JPG、PNG、WebP 等瀏覽器可讀取的圖片格式。</p></div>
+        <span class="count-pill">離線單檔工具</span>
+      </div>
+      <div class="workspace">
+        <section class="panel" aria-label="圖片與切割設定">
+          <h3>📁 ① 選擇圖片</h3>
+          <label class="drop-zone" id="dropZone" for="fileInput" tabindex="0">
+            <span class="upload-icon" aria-hidden="true">🖼️</span>
+            <strong>點擊選取，或把圖片拖曳到這裡</strong>
+            <span>建議使用清晰圖片；檔案大小上限 20 MB</span>
+          </label>
+          <input class="file-input" id="fileInput" type="file" accept="image/*">
+          <div class="file-meta" id="fileMeta" aria-live="polite">尚未選擇圖片。選取後會顯示圖片尺寸與檔案資訊。</div>
+
+          <div class="controls">
+            <div class="field">
+              <label for="gridSize">② 拼圖切割規格</label>
+              <select id="gridSize">
+                <option value="3">3 × 3（9 片）</option>
+                <option value="4">4 × 4（16 片）</option>
+                <option value="5">5 × 5（25 片）</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="format">③ 圖片輸出格式</label>
+              <select id="format">
+                <option value="image/png">PNG（畫質佳）</option>
+                <option value="image/jpeg">JPG（檔案較小）</option>
+              </select>
+            </div>
+          </div>
+          <label class="checkline"><input id="numberNames" type="checkbox" checked><span>下載檔名加上排序編號（例如 piece-01-01.png）</span></label>
+          <div class="button-row">
+            <button class="btn" id="splitBtn" type="button" disabled>✂️ 開始切割拼圖</button>
+            <button class="btn secondary" id="resetBtn" type="button">↺ 清除重來</button>
+          </div>
+          <div class="status" id="status" role="status" aria-live="polite">請先選擇圖片，再按下「開始切割拼圖」。</div>
+        </section>
+
+        <section class="panel" aria-label="原始圖片預覽">
+          <h3>👀 原圖預覽</h3>
+          <div class="preview-wrap" id="previewWrap"><div class="empty-preview">圖片會顯示在這裡<br>選取圖片後即可預覽</div></div>
+          <div class="file-meta" id="dimensionInfo">等待圖片載入中…</div>
+        </section>
+      </div>
+    </section>
+
+    <section class="section" id="resultSection" aria-labelledby="result-title">
+      <div class="section-head">
+        <div><h2 id="result-title">拼圖切割結果</h2><p class="desc">每一片都能個別下載；重新切割會以最新設定取代目前結果。</p></div>
+      </div>
+      <div class="result-summary">
+        <strong id="resultLabel">尚未產生拼圖片</strong>
+        <span class="count-pill" id="pieceCount">0 片</span>
+      </div>
+      <div class="pieces-grid" id="piecesGrid">
+        <div class="empty-preview" style="grid-column:1/-1;padding:25px">完成切割後，所有拼圖片會排列在這裡。</div>
+      </div>
+      <div class="result-actions">
+        <button class="btn green" id="downloadAllBtn" type="button" disabled>⬇️ 逐片下載全部</button>
+        <button class="btn secondary" id="downloadOriginalBtn" type="button" disabled>下載原圖</button>
+      </div>
+      <div class="status" id="downloadStatus" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="section">
+      <div class="section-head"><div><h2>使用小提醒</h2><p class="desc">讓輸出的拼圖更適合課堂活動。</p></div></div>
+      <div class="tips">
+        <div class="tip"><b>📐 按原圖比例切割</b><p>每一片依原始圖片的等比例格線裁切，邊緣不會被拉伸變形。</p></div>
+        <div class="tip"><b>🧩 排序方式</b><p>由左至右、由上而下編號，下載後可依編號還原完整圖片。</p></div>
+        <div class="tip"><b>💾 本機下載</b><p>下載按鈕會將圖塊存到裝置；大量下載時，瀏覽器可能詢問是否允許多檔下載。</p></div>
+      </div>
+    </section>
+    <footer>圖片只在目前瀏覽器分頁中處理。關閉或重新整理頁面後，請重新選取原圖。</footer>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+      const fileInput = document.getElementById("fileInput");
+      const dropZone = document.getElementById("dropZone");
+      const gridSize = document.getElementById("gridSize");
+      const formatSelect = document.getElementById("format");
+      const numberNames = document.getElementById("numberNames");
+      const splitBtn = document.getElementById("splitBtn");
+      const resetBtn = document.getElementById("resetBtn");
+      const previewWrap = document.getElementById("previewWrap");
+      const fileMeta = document.getElementById("fileMeta");
+      const dimensionInfo = document.getElementById("dimensionInfo");
+      const status = document.getElementById("status");
+      const piecesGrid = document.getElementById("piecesGrid");
+      const resultLabel = document.getElementById("resultLabel");
+      const pieceCount = document.getElementById("pieceCount");
+      const downloadAllBtn = document.getElementById("downloadAllBtn");
+      const downloadOriginalBtn = document.getElementById("downloadOriginalBtn");
+      const downloadStatus = document.getElementById("downloadStatus");
+
+      let sourceImage = null;
+      let sourceUrl = "";
+      let sourceFileName = "image";
+      let pieces = [];
+      let busy = false;
+
+      function setStatus(message, type = "") {
+        status.textContent = message;
+        status.className = "status" + (type ? " " + type : "");
+      }
+      function setDownloadStatus(message, type = "") {
+        downloadStatus.textContent = message;
+        downloadStatus.className = "status" + (type ? " " + type : "");
+      }
+      function safeBaseName(name) {
+        const base = name.replace(/\.[^.]+$/, "").replace(/[^\w\u4e00-\u9fff-]+/g, "_").slice(0, 60);
+        return base || "puzzle";
+      }
+      function clearPieces() {
+        pieces.forEach(piece => URL.revokeObjectURL(piece.url));
+        pieces = [];
+        piecesGrid.innerHTML = '<div class="empty-preview" style="grid-column:1/-1;padding:25px">完成切割後，所有拼圖片會排列在這裡。</div>';
+        resultLabel.textContent = "尚未產生拼圖片";
+        pieceCount.textContent = "0 片";
+        downloadAllBtn.disabled = true;
+        setDownloadStatus("");
+      }
+      function clearSource() {
+        if (sourceUrl) URL.revokeObjectURL(sourceUrl);
+        sourceUrl = "";
+        sourceImage = null;
+        sourceFileName = "image";
+        fileInput.value = "";
+        previewWrap.innerHTML = '<div class="empty-preview">圖片會顯示在這裡<br>選取圖片後即可預覽</div>';
+        fileMeta.textContent = "尚未選擇圖片。選取後會顯示圖片尺寸與檔案資訊。";
+        dimensionInfo.textContent = "等待圖片載入中…";
+        splitBtn.disabled = true;
+        downloadOriginalBtn.disabled = true;
+        setStatus("請先選擇圖片，再按下「開始切割拼圖」。");
+        clearPieces();
+      }
+      function loadFile(file) {
+        if (!file) return;
+        if (!file.type.startsWith("image/")) {
+          setStatus("檔案格式不正確，請選擇圖片檔。", "error");
+          return;
+        }
+        if (file.size > 20 * 1024 * 1024) {
+          setStatus("圖片超過 20 MB，請先縮小圖片後再試一次。", "error");
+          return;
+        }
+        const nextUrl = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+          if (sourceUrl) URL.revokeObjectURL(sourceUrl);
+          sourceUrl = nextUrl;
+          sourceImage = img;
+          sourceFileName = safeBaseName(file.name);
+          clearPieces();
+          previewWrap.innerHTML = "";
+          const preview = document.createElement("img");
+          preview.src = sourceUrl;
+          preview.alt = "所選圖片預覽";
+          previewWrap.appendChild(preview);
+          fileMeta.textContent = `${file.name}｜${(file.size / 1024 / 1024).toFixed(2)} MB`;
+          dimensionInfo.textContent = `原始尺寸：${img.naturalWidth} × ${img.naturalHeight} px`;
+          splitBtn.disabled = false;
+          downloadOriginalBtn.disabled = false;
+          setStatus("圖片載入成功！選擇格數後即可開始切割。", "success");
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(nextUrl);
+          setStatus("無法讀取這張圖片，請改用 JPG、PNG 或 WebP 檔案。", "error");
+        };
+        img.src = nextUrl;
+      }
+
+      function canvasToBlob(canvas, mime) {
+        return new Promise((resolve, reject) => {
+          canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("圖片輸出失敗")), mime, 0.92);
+        });
+      }
+      async function splitImage() {
+        if (busy) return;
+        if (!sourceImage) {
+          setStatus("請先選擇一張圖片。", "error");
+          return;
+        }
+        busy = true;
+        splitBtn.disabled = true;
+        splitBtn.textContent = "⏳ 正在切割…";
+        clearPieces();
+        const n = Number(gridSize.value);
+        const mime = formatSelect.value;
+        const extension = mime === "image/jpeg" ? "jpg" : "png";
+        try {
+          const width = sourceImage.naturalWidth;
+          const height = sourceImage.naturalHeight;
+          for (let row = 0; row < n; row++) {
+            for (let col = 0; col < n; col++) {
+              const sx = Math.floor(col * width / n);
+              const sy = Math.floor(row * height / n);
+              const ex = Math.floor((col + 1) * width / n);
+              const ey = Math.floor((row + 1) * height / n);
+              const tileW = Math.max(1, ex - sx);
+              const tileH = Math.max(1, ey - sy);
+              const canvas = document.createElement("canvas");
+              canvas.width = tileW;
+              canvas.height = tileH;
+              const ctx = canvas.getContext("2d");
+              if (!ctx) throw new Error("瀏覽器無法建立圖片畫布。");
+              if (mime === "image/jpeg") {
+                ctx.fillStyle = "#ffffff";
+                ctx.fillRect(0, 0, tileW, tileH);
+              }
+              ctx.drawImage(sourceImage, sx, sy, tileW, tileH, 0, 0, tileW, tileH);
+              const blob = await canvasToBlob(canvas, mime);
+              const url = URL.createObjectURL(blob);
+              pieces.push({ blob, url, row: row + 1, col: col + 1, index: row * n + col + 1, extension });
+            }
+          }
+          renderPieces(n);
+          resultLabel.textContent = `${n} × ${n} 拼圖已完成`;
+          pieceCount.textContent = `${pieces.length} 片`;
+          downloadAllBtn.disabled = false;
+          setStatus(`切割成功！已產生 ${pieces.length} 片拼圖片。`, "success");
+        } catch (error) {
+          clearPieces();
+          setStatus(error.message || "切割時發生問題，請重試。", "error");
+        } finally {
+          busy = false;
+          splitBtn.disabled = !sourceImage;
+          splitBtn.textContent = "✂️ 開始切割拼圖";
+        }
+      }
+      function renderPieces(n) {
+        piecesGrid.innerHTML = "";
+        const fragment = document.createDocumentFragment();
+        pieces.forEach(piece => {
+          const card = document.createElement("article");
+          card.className = "piece-card";
+          const img = document.createElement("img");
+          img.src = piece.url;
+          img.alt = `第 ${piece.row} 列、第 ${piece.col} 欄拼圖片`;
+          const label = document.createElement("span");
+          label.className = "piece-label";
+          label.textContent = `第 ${piece.row} 列・第 ${piece.col} 欄`;
+          const button = document.createElement("button");
+          button.type = "button";
+          button.textContent = "下載這一片";
+          button.addEventListener("click", () => downloadPiece(piece));
+          card.append(img, label, button);
+          fragment.appendChild(card);
+        });
+        piecesGrid.appendChild(fragment);
+      }
+      function downloadBlob(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1200);
+      }
+      function pieceFilename(piece) {
+        const prefix = numberNames.checked
+          ? `piece-${String(piece.row).padStart(2,"0")}-${String(piece.col).padStart(2,"0")}`
+          : `piece-${piece.index}`;
+        return `${sourceFileName}-${prefix}.${piece.extension}`;
+      }
+      function downloadPiece(piece) {
+        downloadBlob(piece.blob, pieceFilename(piece));
+      }
+      async function downloadAll() {
+        if (!pieces.length || busy) return;
+        downloadAllBtn.disabled = true;
+        setDownloadStatus("正在準備逐片下載…若瀏覽器詢問，請允許多檔下載。");
+        for (let i = 0; i < pieces.length; i++) {
+          downloadPiece(pieces[i]);
+          await new Promise(resolve => setTimeout(resolve, 180));
+        }
+        setDownloadStatus(`已送出 ${pieces.length} 個下載要求。請查看瀏覽器的下載清單。`, "success");
+        downloadAllBtn.disabled = false;
+      }
+      function downloadOriginal() {
+        if (!sourceImage) return;
+        const a = document.createElement("a");
+        a.href = sourceUrl;
+        a.download = `${sourceFileName}-original`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
+
+      fileInput.addEventListener("change", event => {
+        loadFile(event.target.files && event.target.files[0]);
+      });
+      dropZone.addEventListener("keydown", event => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          fileInput.click();
+        }
+      });
+      ["dragenter","dragover"].forEach(type => dropZone.addEventListener(type, event => {
+        event.preventDefault();
+        dropZone.classList.add("dragover");
+      }));
+      ["dragleave","drop"].forEach(type => dropZone.addEventListener(type, event => {
+        event.preventDefault();
+        dropZone.classList.remove("dragover");
+      }));
+      dropZone.addEventListener("drop", event => {
+        const file = event.dataTransfer && event.dataTransfer.files[0];
+        if (file) loadFile(file);
+      });
+      splitBtn.addEventListener("click", splitImage);
+      resetBtn.addEventListener("click", () => {
+        if (busy) return;
+        clearSource();
+        gridSize.value = "3";
+        formatSelect.value = "image/png";
+        numberNames.checked = true;
+        setDownloadStatus("已清除圖片與切割結果。");
+      });
+      downloadAllBtn.addEventListener("click", downloadAll);
+      downloadOriginalBtn.addEventListener("click", downloadOriginal);
+      window.addEventListener("beforeunload", () => {
+        if (sourceUrl) URL.revokeObjectURL(sourceUrl);
+        pieces.forEach(piece => URL.revokeObjectURL(piece.url));
+      });
+    })();
+  </script>
+</body>
+</html>
